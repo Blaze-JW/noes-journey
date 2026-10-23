@@ -160,7 +160,7 @@
           ${started ? '<button class="btn alt" id="reset">New game</button>' : ""}
         </div>
         <div id="confirm"></div>
-        <a class="btn gold" href="jonah/" style="text-decoration:none">Chapter 2: Jonah's Journey ▶</a>
+        <a class="btn gold" href="jonah.html" style="text-decoration:none">Chapter 2: Jonah's Journey ▶</a>
       </section>
       <p class="foot">Bible content from <a href="https://www.jw.org" target="_blank" rel="noopener">jw.org</a> and <a href="https://wol.jw.org" target="_blank" rel="noopener">wol.jw.org</a></p>`));
     $app.querySelector("#go").onclick = () => { audio(); S.screen = "map"; save(); showMap(); };

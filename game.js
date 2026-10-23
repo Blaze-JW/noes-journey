@@ -1,6 +1,6 @@
 (() => {
   const C = window.CHAPTER;
-  const A = n => n + ".jpg";
+  const A = n => n + ".jpg"; // pictures sit next to index.html on the website
   const PLAYERS = { levi: { name: "Levi", img: "levi" }, davian: { name: "Davian", img: "davian" } };
   const GOLD = { fact: 3, quick: 6, dig: 10, think: 2 };
   const KIND = { fact: "Question", quick: "Quick find", dig: "Dig deeper", think: "Think about it" };
@@ -160,6 +160,7 @@
           ${started ? '<button class="btn alt" id="reset">New game</button>' : ""}
         </div>
         <div id="confirm"></div>
+        <a class="btn gold" href="jonah/" style="text-decoration:none">Chapter 2: Jonah's Journey ▶</a>
       </section>
       <p class="foot">Bible content from <a href="https://www.jw.org" target="_blank" rel="noopener">jw.org</a> and <a href="https://wol.jw.org" target="_blank" rel="noopener">wol.jw.org</a></p>`));
     $app.querySelector("#go").onclick = () => { audio(); S.screen = "map"; save(); showMap(); };

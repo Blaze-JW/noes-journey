@@ -1,6 +1,6 @@
 (() => {
   const C = window.CHAPTER;
-  const A = n => "assets/" + n + ".jpg";
+  const A = n => n + ".jpg";
   const PLAYERS = { levi: { name: "Levi", img: "levi" }, davian: { name: "Davian", img: "davian" } };
   const GOLD = { fact: 3, quick: 6, dig: 10, think: 2 };
   const KIND = { fact: "Question", quick: "Quick find", dig: "Dig deeper", think: "Think about it" };

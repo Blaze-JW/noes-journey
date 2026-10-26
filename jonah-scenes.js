@@ -442,7 +442,7 @@
     lyric.textContent = "The End";
     const S0 = window.JONAH.S, stars = Object.values(S0.best).reduce((a, b) => a + b, 0), g = S0.gems;
     credits.hidden = false;
-    credits.innerHTML = `Jonah's Journey · played by Davian and Levi · made with love by Sergio<br>
+    credits.innerHTML = `Jonah's Journey · played by ${S0.players === 1 ? "Davian" : "Davian and Levi"} · made with love by Sergio<br>
       ★ ${stars} of 18 stars · Faith Gems: 💛 ${g.jehovah} 📘 ${g.bible} 💚 ${g.myself} ❤️ ${g.helping}<br>
       Bible text: New World Translation (wol.jw.org). Story help: “Imitate Their Faith” and “Lessons You Can Learn From the Bible” (jw.org).<br><br>`;
     const row = document.createElement("div"); row.style.cssText = "display:flex;gap:12px;justify-content:center;pointer-events:auto";

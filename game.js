@@ -14,7 +14,7 @@
     cards: [], gems: { jehovah: 0, bible: 0, myself: 0, helping: 0 },
     letters: 0, bag: { shield: 0, sword: 0, armor: 0, potion: 0, iron: 0 },
     shareAt: { levi: 0, davian: 0 }, found: [], prayerCardSeen: false,
-    best: [0, 0, 0, 0, 0], muted: false
+    best: [0, 0, 0, 0, 0], muted: false, players: 2
   });
 
   let S = fresh();
@@ -28,6 +28,14 @@
   const h = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content; };
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const heartStr = (n, max = 5) => { let s = ""; for (let i = 1; i <= max; i++) s += n >= i ? "❤️" : n >= i - 0.5 ? "💔" : "🤍"; return s; };
+  // One player = Davian plays on his own: he answers every question (Levi's too) and fights alone.
+  const solo = () => S.players === 1;
+  const team = () => solo() ? ["davian"] : ["levi", "davian"];
+  const asWho = w => solo() ? "davian" : w;
+  const playerPick = () => `<div class="seg" role="group" aria-label="How many players">
+      <button class="${solo() ? "on" : ""}" data-players="1">👦 1 player<small>Davian</small></button>
+      <button class="${solo() ? "" : "on"}" data-players="2">👦👦 2 players<small>Davian and Levi</small></button></div>`;
+  const wirePlayerPick = (root, after) => root.querySelectorAll("[data-players]").forEach(b => b.onclick = () => { S.players = +b.dataset.players; save(); after(); });
   const shuffle = a => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
 
   // ---------- Sound (Web Audio, made on the fly) ----------
@@ -122,7 +130,7 @@
       `<div class="gem" style="--c:${g.color}" title="${esc(g.name)}: ${S.gems[k]}/3"><div class="fill" style="height:${S.gems[k] / 3 * 100}%"></div><span>${S.gems[k]}/3</span></div>`).join("");
     $hud.innerHTML = `
       <div class="who"><img src="${A("davian")}" alt=""><div><div class="name">Davian</div><div class="hearts" aria-label="Davian hearts">${heartStr(S.hearts.davian)}</div></div></div>
-      <div class="who"><img src="${A("levi")}" alt=""><div><div class="name">Levi</div><div class="hearts" aria-label="Levi hearts">${heartStr(S.hearts.levi)}</div></div></div>
+      ${solo() ? "" : `<div class="who"><img src="${A("levi")}" alt=""><div><div class="name">Levi</div><div class="hearts" aria-label="Levi hearts">${heartStr(S.hearts.levi)}</div></div></div>`}
       <div class="coin" aria-label="Gold">🪙 ${S.gold}</div>
       <div class="coin" aria-label="Stars" title="Stars from correct answers">⭐ ${allStars()[0]}/${allStars()[1]}</div>
       <div class="gemrow" aria-label="Faith gems">${gemHtml}</div>
@@ -153,8 +161,9 @@
       <section class="title">
         <div class="sub">Bible Adventure · Chapter 1</div>
         <h1>Noé's Journey</h1>
-        <div class="heroes"><img src="${A("davian")}" alt="Davian"><img src="${A("noe")}" alt="Noé"><img src="${A("levi")}" alt="Levi"></div>
-        <p style="max-width:52ch;margin:0">Davian and Levi join Noé to build the ark, stand up to bullies and learn how Jehovah protects those who listen to him. Keep your Bibles open!</p>
+        <div class="heroes"><img src="${A("davian")}" alt="Davian"><img src="${A("noe")}" alt="Noé">${solo() ? "" : `<img src="${A("levi")}" alt="Levi">`}</div>
+        <p style="max-width:52ch;margin:0">${solo() ? "Davian joins" : "Davian and Levi join"} Noé to build the ark, stand up to bullies and learn how Jehovah protects those who listen to him. Keep your Bibles open!</p>
+        ${playerPick()}
         <div class="row" style="justify-content:center">
           <button class="btn" id="go">${started ? "Continue adventure" : "Start adventure"}</button>
           ${started ? '<button class="btn alt" id="reset">New game</button>' : ""}
@@ -164,6 +173,7 @@
       </section>
       <p class="foot">Bible content from <a href="https://www.jw.org" target="_blank" rel="noopener">jw.org</a> and <a href="https://wol.jw.org" target="_blank" rel="noopener">wol.jw.org</a></p>`));
     $app.querySelector("#go").onclick = () => { audio(); S.screen = "map"; save(); showMap(); };
+    wirePlayerPick($app, showTitle);
     const r = $app.querySelector("#reset");
     if (r) r.onclick = () => {
       const box = $app.querySelector("#confirm");
@@ -184,12 +194,13 @@
       <div class="mapwrap"><img src="${A("map")}" alt="Map of Noé's journey">${spots}</div>
       <div class="row" style="justify-content:space-between">
         <h2 style="font-size:24px">${allDone ? "You finished Chapter 1! 🌈" : "Where to next?"}</h2>
-        <div class="row"><button class="btn gold" id="shop">Visit Esaú's shop</button><button class="btn alt" id="home">Title</button></div>
+        <div class="row"><button class="btn alt" id="players">${solo() ? "👦 1 player" : "👦👦 2 players"} ⇄</button><button class="btn gold" id="shop">Visit Esaú's shop</button><button class="btn alt" id="home">Title</button></div>
       </div>
       <div class="stagelist">${list}</div>`);
     body.querySelectorAll("[data-i]").forEach(b => b.onclick = () => startStage(+b.dataset.i));
     body.querySelector("#shop").onclick = openShop;
     body.querySelector("#home").onclick = showTitle;
+    body.querySelector("#players").onclick = () => { S.players = solo() ? 2 : 1; save(); toast(solo() ? "1 player: Davian answers every question" : "2 players: Davian and Levi"); showMap(); };
   };
 
   // ---------- Stage ----------
@@ -198,6 +209,7 @@
     run = { i, st: C.stages[i], line: 0, q: 0, mumHelps: 3, letterGiven: false, correct: 0, bossWon: false };
     showStory();
   };
+  const storyLine = t => solo() ? t.replace(" Hello, Levi!", "") : t;
   const showStory = () => {
     const { st, line } = run;
     const hid = st.hidden, found = S.found.includes(st.id);
@@ -207,7 +219,7 @@
         <div class="speech">
           <h2 style="font-size:28px">${esc(st.name)}</h2>
           <div class="speaker"><img src="${A("noe")}" alt=""><div><b class="display" style="font-size:20px">Noé</b><div style="color:var(--ink-soft);font-size:15px">Read along: ${esc(st.refs)}</div></div><button class="say" aria-label="Read aloud">🔊</button></div>
-          <div class="bubble">${esc(st.story[line])}</div>
+          <div class="bubble">${esc(storyLine(st.story[line]))}</div>
           <div class="row" style="justify-content:space-between">
             <div class="dots">${st.story.map((_, k) => `<i class="${k <= line ? "on" : ""}"></i>`).join("")}</div>
             <div class="row">${line > 0 ? '<button class="btn alt" id="back">Back</button>' : '<button class="btn alt" id="back">Map</button>'}<button class="btn" id="next">${line < st.story.length - 1 ? "Next" : "Let's go!"}</button></div>
@@ -215,7 +227,7 @@
           ${found ? "" : '<small style="color:var(--ink-soft)">Side quest: something is hidden in the picture. Can you find it?</small>'}
         </div>
       </div>`);
-    body.querySelector(".say").onclick = () => speak(st.story[line]);
+    body.querySelector(".say").onclick = () => speak(storyLine(st.story[line]));
     body.querySelector("#next").onclick = () => { if (line < st.story.length - 1) { run.line++; showStory(); } else { run.q = 0; showQuestion(); } };
     body.querySelector("#back").onclick = () => { if (line > 0) { run.line--; showStory(); } else showMap(); };
     const hb = body.querySelector(".hiddenitem");
@@ -227,10 +239,10 @@
 
   // Question card (used in stage rounds)
   const qCardHtml = (q, opts = {}) => {
-    const p = PLAYERS[q.who], big = q.who === "levi";
+    const w = asWho(q.who), p = PLAYERS[w], big = w === "levi";
     return `
       <div class="qhead"><img src="${A(p.img)}" alt=""><div><h2>${opts.title || p.name + "'s turn"}</h2><span class="badge ${q.kind}">${KIND[q.kind]}${q.kind !== "think" ? " · " + GOLD[q.kind] + " gold" : ""}</span></div><button class="say" aria-label="Read aloud">🔊</button></div>
-      ${q.ref ? `<div class="scroll">📖 <span>Open your Bible: <b>${esc(q.ref)}</b></span>${q.who === "levi" && opts.mum !== false && q.kind !== "fact" ? `<button class="mum" id="mum" ${run.mumHelps ? "" : "disabled"}>Mum helps (${run.mumHelps} left)</button>` : ""}</div>` : ""}
+      ${q.ref ? `<div class="scroll">📖 <span>Open your Bible: <b>${esc(q.ref)}</b></span>${w === "levi" && opts.mum !== false && q.kind !== "fact" ? `<button class="mum" id="mum" ${run.mumHelps ? "" : "disabled"}>Mum helps (${run.mumHelps} left)</button>` : ""}</div>` : ""}
       <div class="qtext">${esc(q.q)}</div>
       ${q.kind === "think" ? "" : `<div class="opts ${big ? "big" : ""}">${q.order.map(k => `<button class="opt" data-k="${k}">${esc(q.options[k])}</button>`).join("")}</div>`}`;
   };
@@ -250,7 +262,7 @@
     wireCommon(body, q);
     const after = body.querySelector("#after");
     if (q.kind === "think") {
-      after.innerHTML = `<p style="margin:0">Talk about it together. There's no wrong answer!</p>
+      after.innerHTML = `<p style="margin:0">${solo() ? "Talk about it with your family." : "Talk about it together."} There's no wrong answer!</p>
         <div class="grownup"><small>For a grown-up: approve a thoughtful answer.</small><div class="row"><button class="btn" id="ok">Approve: +1 ${esc(C.gems[q.gem].name)} piece</button><button class="btn alt" id="skip">Skip</button></div></div>`;
       after.querySelector("#ok").onclick = () => {
         addGem(q.gem); S.gold += GOLD.think; save(); renderHud();
@@ -268,7 +280,7 @@
       if (!ok) b.classList.add("wrong");
       if (ok) { run.correct++; sfx.right(); S.gold += GOLD[q.kind]; save(); renderHud(); sfx.coin(); }
       else sfx.wrong();
-      after.innerHTML = `<div class="feedback ${ok ? "good" : "bad"}">${ok ? `Well done, ${PLAYERS[q.who].name}! +${GOLD[q.kind]} gold` : `Not quite. The answer is "${esc(q.options[q.answer])}".${q.ref ? ` Let's read ${esc(q.ref)} together.` : ""}`}</div><div class="row" style="margin-top:10px"><button class="btn" id="nx">Next</button></div>`;
+      after.innerHTML = `<div class="feedback ${ok ? "good" : "bad"}">${ok ? `Well done, ${PLAYERS[asWho(q.who)].name}! +${GOLD[q.kind]} gold` : `Not quite. The answer is "${esc(q.options[q.answer])}".${q.ref ? ` Let's read ${esc(q.ref)} together.` : ""}`}</div><div class="row" style="margin-top:10px"><button class="btn" id="nx">Next</button></div>`;
       after.querySelector("#nx").onclick = next;
     });
   };
@@ -315,7 +327,7 @@
   const draw = who => { if (!B.decks[who].length) B.decks[who] = shuffle(B.boss.pool.filter(q => q.who === who)); return prep(B.decks[who].pop()); };
   const newRound = () => {
     B.picks = {};
-    ["levi", "davian"].forEach(w => { B.cur[w] = B.out[w] ? null : draw(w); });
+    ["levi", "davian"].forEach(w => { B.cur[w] = B.out[w] || !team().includes(w) ? null : draw(w); });
     renderBattle();
   };
   const renderBattle = () => {
@@ -328,18 +340,18 @@
         ${q.ref ? `<div class="scroll">📖 <b>${esc(q.ref)}</b></div>` : ""}
         <div class="qtext">${esc(q.q)}</div>
         <div class="opts ${w === "levi" ? "big" : ""}">${q.order.map(k => `<button class="opt ${B.picks[w] === k ? "picked" : ""}" data-k="${k}" ${B.picks[w] !== undefined ? "disabled" : ""}>${esc(q.options[k])}</button>`).join("")}</div>
-        ${B.picks[w] !== undefined ? `<small>Answer locked in. Waiting for your brother...</small>` : ""}
+        ${B.picks[w] !== undefined && !solo() ? `<small>Answer locked in. Waiting for your brother...</small>` : ""}
       </div>`;
     };
     const secrets = Object.entries(C.gems).filter(([k]) => S.gems[k] >= 3).map(([k, g]) =>
-      `<button class="secret" style="--c:${g.color}" data-gem="${k}">${esc(g.move)}<br><small style="font-family:var(--body);font-size:13px">Both hold 3 seconds · keys ${g.keys[0].toUpperCase()} + ${g.keys[1].toUpperCase()}</small><span class="prog"></span></button>`).join("");
+      `<button class="secret" style="--c:${g.color}" data-gem="${k}">${esc(g.move)}<br><small style="font-family:var(--body);font-size:13px">${solo() ? "Hold 3 seconds" : "Both hold 3 seconds"} · keys ${g.keys[0].toUpperCase()} + ${g.keys[1].toUpperCase()}</small><span class="prog"></span></button>`).join("");
     const body = frame(`
       <div class="battle">
         <div class="panel bossbar"><img id="bossimg" src="${A(boss.img)}" alt="${esc(boss.name)}"><div style="display:grid;gap:4px"><h2 style="font-size:28px">${esc(boss.name)}</h2><div class="bosshearts" aria-label="Boss hearts">${heartStr(B.hp, boss.hearts)}</div>${B.hp < 4 ? `<div class="enraged">⚠️ Desperate! Every hit it lands heals it. Answer carefully!</div>` : ""}
           <small>${B.iron ? "⚔️ Iron Sword: double damage this battle · " : ""}${S.bag.sword ? `🗡️ Sword ready · ` : ""}${S.bag.shield ? `🛡️ x${S.bag.shield} · ` : ""}${S.bag.armor ? `🦺 x${S.bag.armor} · ` : ""}${B.misses ? `Next ${B.misses} attack(s) will miss` : ""}</small></div></div>
         <div class="log" aria-live="polite">${esc(B.log)}</div>
         ${B.prayer ? `<div class="waiting">✉️ Your Prayer Letter was sent. Jehovah's help is coming in ${B.prayer} round${B.prayer > 1 ? "s" : ""}. Keep doing your part! (Micah 7:7)</div>` : ""}
-        <div class="duel">${fighter("davian")}${fighter("levi")}</div>
+        <div class="duel ${solo() ? "solo" : ""}">${team().slice().reverse().map(fighter).join("")}</div>
         <div class="actions">
           <button class="actbtn" id="potion" ${S.bag.potion ? "" : "disabled"}>🧪 Potion (${S.bag.potion})</button>
           <button class="actbtn" id="letter" ${S.letters && !B.prayer ? "" : "disabled"}>✉️ Send Prayer Letter (${S.letters})</button>
@@ -356,7 +368,7 @@
     body.querySelectorAll(".secret").forEach(wireSecret);
   };
   const resolveIfReady = () => {
-    const active = ["levi", "davian"].filter(w => B.cur[w]);
+    const active = team().filter(w => B.cur[w]);
     if (active.some(w => B.picks[w] === undefined)) return renderBattle();
     const right = active.filter(w => B.picks[w] === B.cur[w].answer), wrong = active.filter(w => !right.includes(w));
     // reveal
@@ -365,16 +377,17 @@
       f.querySelectorAll(".opt").forEach(x => { x.disabled = true; x.classList.remove("picked"); if (+x.dataset.k === q.answer) x.classList.add("right"); else if (+x.dataset.k === B.picks[w]) x.classList.add("wrong"); });
     });
     let msg = [];
-    let dmg = right.length === 2 ? 2 : right.length;
+    let dmg = right.length === 2 || solo() ? 2 * right.length : right.length;
     if (dmg) {
-      if (right.length === 2) msg.push("CRITICAL HIT! Both right, double damage!");
+      if (solo()) msg.push(`Davian got it right and hits the ${B.boss.name} hard!`);
+      else if (right.length === 2) msg.push("CRITICAL HIT! Both right, double damage!");
       else msg.push(`${PLAYERS[right[0]].name} got it right and hits the ${B.boss.name}!`);
       if (B.iron) dmg *= 2;
       else if (S.bag.sword) { S.bag.sword--; dmg *= 2; msg.push("The Sword doubles the hit!"); }
       right.forEach(w => { S.gold += 3; });
       sfx.right(); setTimeout(sfx.hit, 200); if (dmg >= 2) setTimeout(sfx.hit, 380);
       damageBoss(dmg);
-    } else msg.push("Both answers missed.");
+    } else msg.push(solo() ? "That answer missed." : "Both answers missed.");
     if (wrong.length && B.hp > 0) {
       const missed = B.misses > 0;
       if (missed) { B.misses--; msg.push(`The ${B.boss.name} attacks... and misses!`); }
@@ -396,7 +409,10 @@
       }
     }
     // returning and resting players
-    ["levi", "davian"].forEach(w => {
+    if (solo()) {
+      // on his own, Davian never sits out: Noé helps him straight back up
+      if (S.hearts.davian <= 0) { S.hearts.davian = 3; B.hp = Math.min(B.boss.hearts, B.hp + 2); msg.push("Noé helps you up: \"Don't give up! Try again.\""); }
+    } else ["levi", "davian"].forEach(w => {
       if (B.out[w]) { B.out[w] = 0; S.hearts[w] = 2; msg.push(`${PLAYERS[w].name} is back with 2 hearts!`); }
       else if (S.hearts[w] <= 0) { B.out[w] = 1; msg.push(`${PLAYERS[w].name} needs a rest for one turn.`); }
     });
@@ -434,7 +450,7 @@
     p.querySelector("#pw").onclick = () => {
       p.remove();
       S.hearts.levi = 5; S.hearts.davian = 5; B.out = { levi: 0, davian: 0 }; save(); renderHud();
-      B.hp = Math.min(B.hp, .5); damageBoss(0); sfx.hit(); B.log = "Jehovah's power! The boss has only half a heart left. Finish it together!";
+      B.hp = Math.min(B.hp, .5); damageBoss(0); sfx.hit(); B.log = `Jehovah's power! The boss has only half a heart left. Finish it${solo() ? "" : " together"}!`;
       if (B.hp <= 0) return finalMove();
       newRound();
     };
@@ -445,7 +461,7 @@
     const gem = btn.dataset.gem, prog = btn.querySelector(".prog");
     const touches = new Set(); const keys = new Set(); let start = 0, raf = 0;
     const [k1, k2] = C.gems[gem].keys;
-    const active = () => touches.size >= 2 || (keys.has(k1) && keys.has(k2));
+    const active = () => touches.size >= (solo() ? 1 : 2) || (keys.has(k1) && keys.has(k2));
     const tick = () => {
       if (!active()) { start = 0; prog.style.width = "0"; raf = 0; return; }
       if (!start) start = performance.now();
@@ -454,7 +470,7 @@
       raf = requestAnimationFrame(tick);
     };
     const kick = () => { if (!raf) raf = requestAnimationFrame(tick); };
-    btn.addEventListener("pointerdown", e => { touches.add(e.pointerId); try { btn.setPointerCapture(e.pointerId); } catch (x) {} if (touches.size === 1) toast("Both hold it together!"); kick(); });
+    btn.addEventListener("pointerdown", e => { touches.add(e.pointerId); try { btn.setPointerCapture(e.pointerId); } catch (x) {} if (touches.size === 1 && !solo()) toast("Both hold it together!"); kick(); });
     const up = e => { touches.delete(e.pointerId); };
     btn.addEventListener("pointerup", up); btn.addEventListener("pointercancel", up);
     const kd = e => { const k = e.key.toLowerCase(); if (k === k1 || k === k2) { keys.add(k); kick(); } };
@@ -485,18 +501,18 @@
     startMusic(true, true);
     const o = h(`<div class="finalmove" role="dialog" aria-label="Final move">
       <div class="fm-label">FINAL MOVE!</div>
-      <p class="fm-help">Work together! <b>Davian</b>, press <kbd>D</kbd> as fast as you can. <b>Levi</b>, press <kbd>L</kbd> as fast as you can. On a tablet, tap your own button.</p>
+      <p class="fm-help">${solo() ? "<b>Davian</b>, press <kbd>D</kbd> as fast as you can! On a tablet, tap your button." : "Work together! <b>Davian</b>, press <kbd>D</kbd> as fast as you can. <b>Levi</b>, press <kbd>L</kbd> as fast as you can. On a tablet, tap your own button."}</p>
       <div class="fm-stage"><img class="fm-boss" src="${A(boss.img)}" alt="${esc(boss.name)}"></div>
-      <div class="fm-row">
+      <div class="fm-row ${solo() ? "solo" : ""}">
         <button class="fm-btn" data-w="davian"><img src="${A("davian")}" alt=""><span>Davian · D</span><span class="fm-bar"><i></i></span></button>
-        <button class="fm-btn" data-w="levi"><img src="${A("levi")}" alt=""><span>Levi · L</span><span class="fm-bar"><i></i></span></button>
+        ${solo() ? "" : `<button class="fm-btn" data-w="levi"><img src="${A("levi")}" alt=""><span>Levi · L</span><span class="fm-bar"><i></i></span></button>`}
       </div></div>`).firstChild;
     document.body.appendChild(o);
     const img = o.querySelector(".fm-boss");
     let done = false;
     const draw = () => {
-      ["davian", "levi"].forEach(w => { o.querySelector(`.fm-btn[data-w="${w}"] .fm-bar i`).style.width = (Math.min(n[w], target) / target * 100) + "%"; });
-      const prog = (Math.min(n.davian, target) + Math.min(n.levi, target)) / (2 * target);
+      team().forEach(w => { o.querySelector(`.fm-btn[data-w="${w}"] .fm-bar i`).style.width = (Math.min(n[w], target) / target * 100) + "%"; });
+      const prog = team().reduce((a, w) => a + Math.min(n[w], target), 0) / (team().length * target);
       img.style.transform = `scale(${1 - .8 * prog}) rotate(${(Math.random() - .5) * 10 * prog}deg)`;
     };
     const press = w => {
@@ -505,11 +521,11 @@
       tone(w === "davian" ? 180 + n[w] * 6 : 260 + n[w] * 6, .07, "square", .1); if (n[w] % 5 === 0) noise(.08, 900, .5);
       img.classList.remove("jolt"); void img.offsetWidth; img.classList.add("jolt");
       draw();
-      if (n.davian >= target && n.levi >= target) finish();
+      if (team().every(w => n[w] >= target)) finish();
     };
     // the boss fights back a little, so they have to keep going
     const decay = setInterval(() => { ["davian", "levi"].forEach(w => { if (n[w] > 0 && n[w] < target) n[w]--; }); draw(); }, 450);
-    const kd = e => { if (e.repeat) return; const k = e.key.toLowerCase(); if (k === "d") press("davian"); if (k === "l") press("levi"); };
+    const kd = e => { if (e.repeat) return; const k = e.key.toLowerCase(); if (k === "d") press("davian"); if (k === "l" && !solo()) press("levi"); };
     window.addEventListener("keydown", kd);
     o.querySelectorAll(".fm-btn").forEach(b => b.addEventListener("pointerdown", e => { e.preventDefault(); press(b.dataset.w); }));
     const finish = () => {
@@ -527,8 +543,8 @@
     const boss = B.boss; B = null; stopMusic(); run.bossWon = true;
     const body = frame(`<div class="panel" style="display:grid;gap:12px;justify-items:center;text-align:center">
       <h2 style="font-size:38px">Victory! 🎉</h2>
-      <p style="margin:0;font-size:20px">You beat the ${esc(boss.name)} together! +10 gold, and everyone is healed.</p>
-      <div class="speaker"><img src="${A("noe")}" alt=""><div class="bubble" style="min-height:0">Well done! You trusted Jehovah and worked as a team.</div></div>
+      <p style="margin:0;font-size:20px">You beat the ${esc(boss.name)}${solo() ? "" : " together"}! +10 gold, and everyone is healed.</p>
+      <div class="speaker"><img src="${A("noe")}" alt=""><div class="bubble" style="min-height:0">${solo() ? "Well done, Davian! You trusted Jehovah and kept going." : "Well done! You trusted Jehovah and worked as a team."}</div></div>
       <button class="btn" id="nx">Get your Lesson Card</button></div>`);
     body.querySelector("#nx").onclick = showLessonCard;
   };
@@ -598,7 +614,7 @@
     const m = openModal(`
       <h2>Share a thought</h2>
       <p style="margin:0">Tell your family something you learned or thought about from Noé's account. A grown-up chooses which gem it fills.</p>
-      <div class="row">${["davian", "levi"].map(w => `<button class="btn ${wait(w) ? "alt" : ""}" data-who="${w}" ${wait(w) ? "disabled" : ""}>${PLAYERS[w].name}${wait(w) ? ` (wait ${wait(w)} min)` : ""}</button>`).join("")}</div>
+      <div class="row">${team().slice().reverse().map(w => `<button class="btn ${wait(w) ? "alt" : ""}" data-who="${w}" ${wait(w) ? "disabled" : ""}>${PLAYERS[w].name}${wait(w) ? ` (wait ${wait(w)} min)` : ""}</button>`).join("")}</div>
       <div id="pick"></div>
       <button class="btn alt" data-close>Close</button>`);
     m.querySelectorAll("[data-who]").forEach(b => b.onclick = () => {

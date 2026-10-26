@@ -159,7 +159,7 @@
         ]);
         b.dec("olive", 18, 9);
         b.gate(21, 9, { q: Q.l1g1 });
-        b.trig(17, 18, async g => g.bubble(`A gate! Jonah and the bag: stand beside it together and wait. Then ${g.keeperName()}, press ${g.talkKey(g.LV.keeper)} to open it.`, 5000));
+        b.trig(17, 18, async g => g.bubble(g.solo() ? `A gate! Stand beside it and wait for the bag. Then press ${g.talkKey("d")} to open it.` : `A gate! Jonah and the bag: stand beside it together and wait. Then ${g.keeperName()}, press ${g.talkKey(g.LV.keeper)} to open it.`, 5000));
         b.dec("house", 23, 9, { w: 64, h: 48 }); b.roof(23, 26, 6);
         b.scroll(25, 3, 0);
         b.dec("stall", 28, 9);
@@ -202,7 +202,7 @@
     async onStart(g) {
       g.goal.set([{ id: "talk", label: "Talk to 2 neighbours about Nineveh", n: 2 }, { id: "home", label: "Go home to your house", n: 1 }]);
       await g.narr("Gath-hepher, a small town in the hills of Israel. Jonah lives here. He is a prophet of Jehovah.");
-      await g.narr(`${g.jonahName()} is playing Jonah. ${g.keeperName()} is Jonah's bag! The bag carries the Bible scrolls, so ${g.keeperName()} is the Scroll Keeper too.`);
+      await g.narr(g.solo() ? `${g.jonahName()} is playing Jonah. Jonah's bag follows him and carries the Bible scrolls, so ${g.jonahName()} is the Scroll Keeper too.` : `${g.jonahName()} is playing Jonah. ${g.keeperName()} is Jonah's bag! The bag carries the Bible scrolls, so ${g.keeperName()} is the Scroll Keeper too.`);
       await g.narr("Gates only open when Jonah and the bag wait at the gate together. Then the Scroll Keeper answers a Bible question to open it.");
       await g.think("What a lovely day in Gath-hepher! I'll say shalom to my neighbours.", { mood: "happy" });
     },
@@ -289,7 +289,7 @@
     }],
     async onStart(g) {
       g.goal.set([{ id: "coins", label: "Collect coins for the ship fare", n: 10 }, { id: "fare", label: "Pay the fare at the port", n: 1 }]);
-      await g.narr(`Now ${g.jonahName()} plays Jonah and ${g.keeperName()} is Jonah's bag and the Scroll Keeper.`);
+      await g.narr(g.solo() ? g.roles() : `Now ${g.jonahName()} plays Jonah and ${g.keeperName()} is Jonah's bag and the Scroll Keeper.`);
       await g.think("Tarshish is far, far to the west, across the sea. Maybe if I go far enough away...", { mood: "sad" });
     },
   };
@@ -452,7 +452,7 @@
       },
     ],
     async onStart(g) {
-      await g.narr(`On board the ship to Tarshish. ${g.jonahName()} is Jonah, ${g.keeperName()} is Jonah's bag and the Scroll Keeper.`);
+      await g.narr(`On board the ship to Tarshish. ${g.roles()}`);
       g.goal.set([{ id: "below", label: "Go below deck to rest", n: 1 }]);
       await g.think("We've set sail. Nineveh is behind me now... far behind.", { mood: "sad" });
     },
@@ -523,7 +523,7 @@
       },
     ],
     async onStart(g) {
-      await g.narr(`${g.jonahName()} is Jonah. ${g.keeperName()} is Jonah's bag and the Scroll Keeper.`);
+      await g.narr(g.roles());
       await g.narr("Jonah is sinking into the deep sea. Swim! Press ⤒ (Space) again and again to swim up. Avoid the jellyfish and sharp rocks.");
       g.goal.set([{ id: "swim", label: "Swim through the deep", n: 1 }]);
     },
@@ -659,7 +659,7 @@
       },
     ],
     async onStart(g) {
-      await g.narr(`${g.jonahName()} is Jonah. ${g.keeperName()} is Jonah's bag and the Scroll Keeper.`);
+      await g.narr(g.roles());
       await g.narr("Jonah is back on dry land. Jehovah has told him a second time: “Get up, go to Nineveh the great city, and proclaim to her the message that I tell you.” (Jonah 3:2)");
       g.goal.set([{ id: "walk", label: "Walk the long road to Nineveh", n: 1 }]);
     },
@@ -683,7 +683,7 @@
     await g.narr("Guards march up and down the big streets. Wait in a side street, watch them, and go when a guard walks away from you! If a guard stops Jonah, he goes back to the last square.");
     await g.maze(MAZE);
     await g.narr("End of Day 1. Day 2: the crowds are bigger!");
-    await g.mash({ title: "Day 2: Shout the message!", sub: `Davian presses D, Levi presses L (or tap your button). Make Jonah's voice loud enough for the whole crowd!`, need: 30 });
+    await g.mash({ title: "Day 2: Shout the message!", sub: `Davian presses D, Levi presses L (or tap your button). Make Jonah's voice loud enough for the whole crowd!`, sub1: "Davian, press D as fast as you can (or tap the button). Make Jonah's voice loud enough for the whole crowd!", need: 30 });
     g.music("city");
     await g.narr(`“${V.j35[0]}” (${V.j35[1]})`);
     await g.tween(g.v, "fade", 1, 700);
@@ -746,7 +746,7 @@
       onRespawn(g) { g.LV.vars.heat = 0.3; },
     }],
     async onStart(g) {
-      await g.narr(`${g.jonahName()} is Jonah. ${g.keeperName()} is Jonah's bag and the Scroll Keeper.`);
+      await g.narr(g.roles());
       await g.decision({
         prompt: "Jehovah did not destroy Nineveh. The people were saved! How should Jonah feel?",
         options: ["Happy that the people were saved", "Angry"],

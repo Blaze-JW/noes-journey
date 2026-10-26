@@ -13,8 +13,11 @@
   const S = (() => {
     let s = null;
     try { s = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); } catch (e) {}
-    return Object.assign({ unlocked: 1, best: {}, gems: { jehovah: 0, bible: 0, myself: 0, helping: 0 }, seen: {}, swap: false, finished: false }, s || {});
+    return Object.assign({ unlocked: 1, best: {}, gems: { jehovah: 0, bible: 0, myself: 0, helping: 0 }, seen: {}, swap: false, finished: false, players: 2 }, s || {});
   })();
+  // 1 player = Davian on his own: he is Jonah and the Scroll Keeper, and the bag follows by itself.
+  if (S.bagAuto != null) { S.players = S.bagAuto ? 1 : 2; delete S.bagAuto; }
+  const solo = () => S.players === 1;
   function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} }
 
   const NAMES = { d: "Davian", l: "Levi" };
@@ -37,7 +40,7 @@
   }
   function mergeKeys() { for (const k in K) K[k] = KB.d[k] || KB.l[k]; P = {}; for (const w in PB) for (const k in PB[w]) if (PB[w][k]) P[k] = 1; }
   // In one-player mode (the bag follows by itself) Jonah answers to both sides of the keyboard.
-  function inputFor(w) { return S.bagAuto ? { k: K, p: P } : { k: KB[w], p: PB[w] }; }
+  function inputFor(w) { return solo() ? { k: K, p: P } : { k: KB[w], p: PB[w] }; }
   const typing = e => e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName);
   addEventListener("keydown", e => {
     if (typing(e)) return;
@@ -63,10 +66,11 @@
     const show = touchMode && (mode === "play" || mode === "maze");
     $("#touch").hidden = !show;
     $("#touch .pu").hidden = mode !== "maze";
+    $("#touch .pr").hidden = solo();
     if (!show) return;
     document.querySelectorAll("#touch .pad .tag").forEach(tag => {
       const w = tag.closest("[data-who]").dataset.who;
-      const role = mode === "maze" ? "Jonah" : !LV ? "" : LV.jonah === w ? "Jonah" : S.bagAuto ? "" : "🎒 Bag";
+      const role = mode === "maze" ? "Jonah" : !LV ? "" : LV.jonah === w ? "Jonah" : solo() ? "" : "🎒 Bag";
       tag.textContent = NAMES[w] + (role ? " · " + role : "");
       tag.parentElement.classList.toggle("off", !role);
     });
@@ -352,7 +356,25 @@
       stats: { q: 0, first: 0 }, scrolls: [false, false, false], coins: 0, help: 2, gems: 0, lock: 0, auto: null,
       jonah: jp, keeper: jp === "d" ? "l" : "d", meter: null, ended: false,
     };
+    assignRoles();
     return LV;
+  }
+  // Two players: Jonah and the bag swap brothers each level. One player: Davian is both.
+  function assignRoles() {
+    const jp = ((LV.i % 2 === 0) !== !!S.swap) ? "d" : "l";
+    LV.jonah = solo() ? "d" : jp; LV.keeper = solo() ? "d" : jp === "d" ? "l" : "d";
+  }
+  function setPlayers(n) {
+    S.players = n; save();
+    if (LV) {
+      assignRoles(); LV.tagUntil = LV.t + 360;
+      bubble(solo() ? "1 player: Davian is Jonah, and the bag follows by itself." : `2 players: ${NAMES[LV.jonah]} is Jonah, ${NAMES[LV.keeper]} steers the bag.`, 4000);
+    }
+    refreshTouch();
+  }
+  function rolesLine() {
+    const J = LV ? NAMES[LV.jonah] : "Davian", K = LV ? NAMES[LV.keeper] : "Levi";
+    return solo() ? `${J} is Jonah and the Scroll Keeper. Jonah's bag follows him by itself.` : `${J} is Jonah. ${K} is Jonah's bag and the Scroll Keeper.`;
   }
 
   function enterRoom(r, sx, sy) {
@@ -535,7 +557,7 @@
     if (b.inv > 0) b.inv--;
     if (b.dead > 0) { b.dead--; b.vy += 0.3; b.y += b.vy; if (b.dead === 0) bagToJonah(true); return; }
     let ctl;
-    if (S.bagAuto || LV.auto) ctl = followCtl(b, p);
+    if (solo() || LV.auto) ctl = followCtl(b, p);
     else if (LV.lock) ctl = {};
     else { const inp = inputFor(LV.keeper); ctl = { left: inp.k.left, right: inp.k.right, jumpHeld: inp.k.jump || inp.k.up, jumpPress: inp.p.jump || inp.p.up }; }
     const bad = updateBody(b, ctl);
@@ -629,7 +651,7 @@
     all.forEach(q => { if (q.slow > 0) q.slow--; });
     const it = nearestInteract(), gate = LV.ents.find(e => e.type === "gate" && e.solid && e.ready);
     const jt = document.querySelector(`#touch [data-who="${LV.jonah}"] [data-k="talk"]`), kt = document.querySelector(`#touch [data-who="${LV.keeper}"] [data-k="talk"]`);
-    if (jt) jt.classList.toggle("hint", !!it); if (kt) kt.classList.toggle("hint", !!gate || (S.bagAuto && !!it));
+    if (jt) jt.classList.toggle("hint", !!it); if (kt) kt.classList.toggle("hint", !!gate || (solo() && !!it));
     LV.near = it;
     if (!p.dead && !LV.lock) {
       if (gate && P.talk) { P.talk = 0; runScript(gateAct, gate); }
@@ -639,7 +661,7 @@
     const shut = LV.ents.find(e => e.type === "gate" && e.solid && !e.ready && (e.nj || e.nb));
     if (shut && p.pushing && !shut.hinted) {
       shut.hinted = true;
-      bubble(shut.nb ? "Wait together at the gate... the Scroll Keeper's key is coming!" : `The gate is shut. Wait for ${NAMES[LV.keeper]} and the bag: Jonah and the bag must stand at the gate together.`, 4000);
+      bubble(shut.nb ? "Wait together at the gate... the Scroll Keeper's key is coming!" : `The gate is shut. Wait for ${solo() ? "" : NAMES[LV.keeper] + " and "}the bag: Jonah and the bag must stand at the gate together.`, 4000);
     }
   }
   const shrink = (e, k) => ({ x: e.x + k, y: e.y + k, w: e.w - 2 * k, h: e.h - 2 * k });
@@ -742,7 +764,7 @@
   }
   // Each brother's initial floats above his character for a few seconds when a room starts.
   function drawTags(t) {
-    if (LV.t > LV.tagUntil || S.bagAuto) return;
+    if (LV.t > LV.tagUntil || solo()) return;
     const p = LV.p, b = LV.b, bob = Math.sin(t * 6) * 1.5;
     markBubble(p.x + 1, p.y - 16 + bob, LV.jonah.toUpperCase(), "#ffe58a");
     if (bagOn()) markBubble(b.x + 1, b.y - 22 + bob, LV.keeper.toUpperCase(), "#bfe8ff");
@@ -1058,20 +1080,20 @@
   function mash(def) {
     return new Promise(res => {
       const prev = mode; mode = "mash"; refreshTouch(); hud.hidden = true;
-      const need = def.need || 30, st = { d: 0, l: 0 }, box = el("div", "mash");
-      box.innerHTML = `<h2>${esc(def.title)}</h2><div class="sub">${esc(def.sub)}</div>
-        <div class="bars">
+      const one = solo(), need = def.need || 30, st = { d: 0, l: one ? need : 0 }, box = el("div", "mash");
+      box.innerHTML = `<h2>${esc(def.title)}</h2><div class="sub">${esc(one && def.sub1 || def.sub)}</div>
+        <div class="bars${one ? " one" : ""}">
           <div class="pl"><div class="meterv"><i class="fd"></i></div><button class="press pd">Davian: press D</button></div>
-          <div class="pl"><div class="meterv"><i class="fl"></i></div><button class="press pl2">Levi: press L</button></div>
+          <div class="pl"${one ? " hidden" : ""}><div class="meterv"><i class="fl"></i></div><button class="press pl2">Levi: press L</button></div>
         </div>`;
       screenEl.appendChild(box);
       SND.music(def.music || "mash");
       const fd = box.querySelector(".fd"), fl = box.querySelector(".fl"), bd = box.querySelector(".pd"), bl = box.querySelector(".pl2");
       MS = { v: 0, def };
       let done = false;
-      const upd = () => { fd.style.width = (st.d / need * 100) + "%"; fl.style.width = (st.l / need * 100) + "%"; MS.v = (st.d + st.l) / (2 * need); };
+      const upd = () => { fd.style.width = (st.d / need * 100) + "%"; fl.style.width = (st.l / need * 100) + "%"; MS.v = one ? st.d / need : (st.d + st.l) / (2 * need); };
       const hit = who => {
-        if (done) return;
+        if (done || (one && who === "l")) return;
         st[who] = Math.min(need, st[who] + 1); SND.sfx(who === "d" ? "shout" : "blip");
         const b = who === "d" ? bd : bl; b.classList.add("hit"); setTimeout(() => b.classList.remove("hit"), 70);
         upd();
@@ -1095,9 +1117,9 @@
     clearScreen(); LV = null; mode = "title"; hud.hidden = true; refreshTouch();
     const s = el("div", "title");
     s.innerHTML = `<h1>Jonah's<br>Journey</h1><p>A Bible adventure for Davian and Levi</p>
-      <button class="bigbtn">▶ Play</button>
+      <div class="pick"><button class="bigbtn${solo() ? "" : " alt"}" data-n="1">▶ 1 player<small>Davian</small></button><button class="bigbtn${solo() ? " alt" : ""}" data-n="2">▶ 2 players<small>Davian and Levi</small></button></div>
       <small class="src">Bible content from <a href="https://www.jw.org" target="_blank" rel="noopener">jw.org</a> and <a href="https://wol.jw.org" target="_blank" rel="noopener">wol.jw.org</a></small>`;
-    s.querySelector("button").onclick = () => { SND.init(); SND.music("title"); showMap(); };
+    s.querySelectorAll(".pick button").forEach(b => (b.onclick = () => { setPlayers(+b.dataset.n); SND.init(); SND.music("title"); showMap(); }));
     // On the family website this game is jonah.html, right next to Noé's Journey (index.html).
     if (/\/jonah(\.html|\/(index\.html)?)?$/.test(location.pathname)) {
       const noe = el("a", "bigbtn alt back", "◀ Noé's Journey"); noe.href = /\/jonah\//.test(location.pathname) ? "../" : "./"; s.appendChild(noe);
@@ -1124,6 +1146,7 @@
   }
   function controls(w, bag) {
     if (touchMode) return w === "d" ? "Use the buttons on the left." : "Use the buttons on the right.";
+    if (solo()) return "Keys: A and D (or ← →) to walk, W (or ↑) to jump, E (or Enter) to talk and open gates.";
     const act = bag ? "to open gates" : "to talk";
     return w === "d" ? `Keys: A and D to walk, W to jump, E ${act}.` : `Keys: ← and → to walk, ↑ to jump, Enter ${act}.`;
   }
@@ -1136,13 +1159,14 @@
         <div class="small">${esc(L.ref)}</div>
         <p>${esc(L.intro)}</p>
         <div class="opts">
-          <div class="opt">🎮 <b>Jonah: ${NAMES[jp]}</b>. You talk to people and lead the way. ${controls(jp)}</div>
-          <div class="opt">🎒 <b>Jonah's bag: ${NAMES[kp]}</b>. ${S.bagAuto ? "The bag follows Jonah by itself." : `You hop along with Jonah. ${controls(kp, true)}`} You are the Scroll Keeper too: you open every gate with the Bible.${kp === "l" ? " Mum can help 2 times." : ""}</div>
+          ${solo() ? `<div class="opt">🎮 <b>Jonah: Davian</b>. You lead the way, talk to people, and you are the Scroll Keeper: you open every gate with the Bible. ${controls("d")}</div>
+          <div class="opt">🎒 <b>Jonah's bag</b> follows you by itself.</div>` : `<div class="opt">🎮 <b>Jonah: ${NAMES[jp]}</b>. You talk to people and lead the way. ${controls(jp)}</div>
+          <div class="opt">🎒 <b>Jonah's bag: ${NAMES[kp]}</b>. You hop along with Jonah. ${controls(kp, true)} You are the Scroll Keeper too: you open every gate with the Bible.${kp === "l" ? " Mum can help 2 times." : ""}</div>`}
         </div>
-        <div class="row"><button class="btn go">▶ Start</button><button class="btn alt small sw">⇄ Swap roles</button><button class="btn alt small one">${S.bagAuto ? "🎒 Bag follows (1 player) ✓" : "🎒 2 players ✓"}</button><button class="btn alt small bk">◀ Map</button></div>`);
+        <div class="row"><button class="btn go">▶ Start</button>${solo() ? "" : `<button class="btn alt small sw">⇄ Swap roles</button>`}<button class="btn alt small one">${solo() ? "👦 1 player ⇄" : "👦👦 2 players ⇄"}</button><button class="btn alt small bk">◀ Map</button></div>`);
       C.c.querySelector(".go").onclick = () => { C.close(); startLevel(i); };
-      C.c.querySelector(".sw").onclick = () => { S.swap = !S.swap; save(); C.close(); draw(); };
-      C.c.querySelector(".one").onclick = () => { S.bagAuto = !S.bagAuto; save(); C.close(); draw(); };
+      if (!solo()) C.c.querySelector(".sw").onclick = () => { S.swap = !S.swap; save(); C.close(); draw(); };
+      C.c.querySelector(".one").onclick = () => { setPlayers(solo() ? 2 : 1); C.close(); draw(); };
       C.c.querySelector(".bk").onclick = () => { C.close(); showMap(); };
     };
     draw();
@@ -1198,11 +1222,11 @@
     const C = card(`<h2>Paused</h2><div class="opts">
       <button class="opt r1">▶ Keep playing</button>
       <button class="opt r4">🎒 Bring the bag to Jonah</button>
-      <button class="opt r5">${S.bagAuto ? `🎒 Let ${NAMES[LV.keeper]} steer the bag again (2 players)` : "🎒 Make the bag follow Jonah by itself (1 player)"}</button>
+      <button class="opt r5">${solo() ? "👦👦 Switch to 2 players (Levi joins)" : "👦 Switch to 1 player (the bag follows by itself)"}</button>
       <button class="opt r2">↺ Restart this level</button><button class="opt r3">🗺️ Back to the map</button></div>`);
     const close = () => { C.close(); adv = null; uiOut(); };
     C.c.querySelector(".r4").onclick = () => { close(); if (bagOn()) bagToJonah(true); };
-    C.c.querySelector(".r5").onclick = () => { S.bagAuto = !S.bagAuto; save(); close(); refreshTouch(); };
+    C.c.querySelector(".r5").onclick = () => { close(); setPlayers(solo() ? 2 : 1); };
     C.c.querySelector(".r1").onclick = close; adv = close;
     C.c.querySelector(".r2").onclick = () => { const i = LV.i; close(); startLevel(i); };
     C.c.querySelector(".r3").onclick = () => { close(); showMap(); };
@@ -1248,7 +1272,7 @@
     get LV() { return LV; }, get p() { return LV.p; }, get v() { return vars(); }, get skipping() { return skipping; },
     names: NAMES, keeperName: () => NAMES[keeper()], jonahName: () => (LV ? NAMES[LV.jonah] : "Davian"),
     walkTo, hurt, giveGem, endLevel, playEnding, drawChar, markBubble,
-    regroup: () => bagToJonah(true), get b() { return LV.b; }, talkKey: w => keyName(w, "talk"),
+    regroup: () => bagToJonah(true), solo, roles: rolesLine, get b() { return LV.b; }, talkKey: w => keyName(w, "talk"),
     room(i, sx, sy) { enterRoom(i, sx, sy); },
     find: id => LV.ents.find(e => e.id === id),
     spawn(type, x, y, o) { const e = Object.assign({ type, x, y, w: 16, h: 16 }, o); LV.ents.push(e); return e; },
